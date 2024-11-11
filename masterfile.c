@@ -1,41 +1,38 @@
 #include <stdio.h>
-#include <stdlib.h>
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "image_utils.h"
 
-void freeImage(unsigned char *imageData);
-void loadImage(const char *filename, unsigned char **imageData, int *width, int *height, int *channels);
+int main(int argc, char** argv) {
+    const char *input_filename = "sample.bmp";
+    const char *output_filename = "output.bmp";
+    int width, height;
 
-void loadImage(const char *filename, unsigned char **imageData, int *width, int *height, int *channels) { 
-    // Load the image 
-    *imageData = stbi_load(filename, width, height, channels, 0); 
-    if (*imageData == NULL) { 
-        printf("Error in loading the image\n"); 
-        exit(1); 
-    } 
-} 
- 
-void freeImage(unsigned char *imageData) { 
-    stbi_image_free(imageData); 
-} 
- 
-int main() { 
-    const char *filename = "highway.png"; // Change this to your image file 
-    unsigned char *imageData; 
-    int width, height, channels; 
- 
-    loadImage(filename, &imageData, &width, &height, &channels); 
- 
-    // Print image dimensions and channels 
-    printf("Image width: %d, height: %d, channels: %d\n", width, height, channels); 
- 
-    // Access pixel data (for example, print the first pixel) 
-    if (channels >= 3) { 
-        printf("First pixel (R, G, B): (%d, %d, %d)\n",  
-               imageData[0], imageData[1], imageData[2]); 
-    } 
- 
-    // Free the image memory 
-    freeImage(imageData); 
-    return 0; 
-} 
+    // Extract pixel values into matrix
+    int **matrix = read_grayscale_bmp(input_filename, &width, &height);
+
+    if (matrix) {
+        printf("Height: %d\n", height);
+        printf("Width: %d\n", width);
+
+        // Print some grayscale values for debugging
+        for (int i = 0; i < height && i < 10; i++) {
+            for (int j = 0; j < width && j < 10; j++) {
+                printf("%d ", matrix[i][j]);
+            }
+            printf("\n");
+        }
+
+        //generate a greyscale image using the extracted pixel values.
+        write_grayscale_bmp(output_filename, matrix, width, height);
+        free_matrix(matrix, height);
+        
+    } else {
+        printf("Failed to read the BMP file.\n");
+    }
+
+    return 0;
+}
+
+
+
+// gcc -Wall -o masterfile.exe masterfile.c image_utils.c
+// .\masterfile
