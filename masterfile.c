@@ -24,6 +24,8 @@ int main(int argc, char** argv) {
         //generate a greyscale image using the extracted pixel values.
         write_grayscale_bmp(output_filename, matrix, width, height);
         free_matrix(matrix, height);
+
+        
         
     } else {
         printf("Failed to read the BMP file.\n");
