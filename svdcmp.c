@@ -118,6 +118,7 @@ the transpose VT) is output as v[1..n][1..n].
 				for (k=l;k<=n;k++) a[i][k] *= scale;
 			}
 		}
+		printf("Debug: Completed iteration %d\n", i); // Debug print
 		anorm = DMAX(anorm,(fabs(w[i])+fabs(rv1[i])));
 	}
 	for (i=n;i>=1;i--) { /* Accumulation of right-hand transformations. */

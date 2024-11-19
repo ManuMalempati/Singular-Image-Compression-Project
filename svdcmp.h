@@ -8,5 +8,5 @@ void free_dvector(double *v, int nl, int nh);
 void svdcmp(double **a, int m, int n, double w[], double **v);
 double pythag(double a, double b);
 void free_dmatrix(double **m, int nrl, int nrh, int ncl, int nch);
-
+int decomposer(double **a, int m, int n, double ***U_reduced, double **W_reduced, double ***V_reduced, double ***V_T);
 #endif
