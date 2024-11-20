@@ -1,14 +1,22 @@
 #include <stdio.h>
 #include "image_utils.h"
 #include "svdcmp.h"
+#include <math.h>
+#include <stdlib.h>
+
+double** column_row_scalar_multiply(double *col, double *row, int col_size, int row_size, double scalar);
+double** add_matrices(double **matrix1, double **matrix2, int rows, int columns);
+
 
 int main(int argc, char** argv) {
     const char *input_filename = "sample.bmp";
     const char *output_filename = "output.bmp";
-    int width, height;
+    int width, height, hints=3;
+
+    // The number of hints, is the number of rows, columns and singular values to include incrementally from the decomposed matrices.
 
     // Extract pixel values into matrix
-    int **matrix = read_grayscale_bmp(input_filename, &width, &height);
+    double **matrix = read_grayscale_bmp(input_filename, &width, &height);
 
     if (matrix) {
         printf("Height: %d\n", height);
@@ -17,7 +25,7 @@ int main(int argc, char** argv) {
         // Print some grayscale values for debugging
         for (int i = 0; i < height && i < 10; i++) {
             for (int j = 0; j < width && j < 10; j++) {
-                printf("%d ", matrix[i][j]);
+                printf("%f ", matrix[i][j]);
             }
             printf("\n");
         }
@@ -45,11 +53,70 @@ int main(int argc, char** argv) {
         printf("Entering the function\n");
 
         // Decompose matrix & store decomposed data.
+        /* We have to pass the addresses of the matrices, otherwise the decomposer function will end up receiving a copy of the pointers.
+           Passing the address, allows allocation as follows: *U_reduced = ()malloc()...
+           *U_reduced (dereferenced) gives the address of **U_reduced so that memory can then be allocated.
+        */
         decomposer(a, height, width, &U_reduced, &W_reduced, &V_reduced, &V_T);
+
+        int singular_values = 0;
+
+        if(height >= width){
+            singular_values = height;
+        }
+        else{
+            singular_values = width;
+        }
+
+        int increment_by = singular_values/hints;
+
+        int counter = 1;
+        
+
+        double **result = dmatrix(1, height, 1, width);
+        // Initialize result matrix to zero
+        for (int i = 1; i <= height; i++) {
+            for (int j = 1; j <= width; j++) {
+                result[i][j] = 0.0;
+            }
+        }
+
+        char filename[100];
+        
+        for(int i=0; i < hints; i++){
+            // pick counter-counter+increment_by rows from U_reduced, values from W_reduced and columns from V_T
+            for(int j=counter; j<counter+increment_by && j <= singular_values; j++){
+                double *U_slice = (double*)calloc(height, sizeof(double));
+                double *V_slice = (double*)calloc(width, sizeof(double));
+                if(U_slice == NULL || V_slice == NULL){
+                    return 0;
+                }
+                double singular_value = W_reduced[j];
+                for(int k=1; k<=height; k++){
+                    U_slice[k-1] = U_reduced[k][j];
+                }
+                for(int k=1; k<=width; k++){
+                    V_slice[k-1] = V_T[j][k];
+                }
+
+                double **temp_result = column_row_scalar_multiply(U_slice, V_slice, height, width, singular_value);
+                double **new_result = add_matrices(result, temp_result, height, width);
+
+                free_dmatrix(result, 1, height, 1, width);
+                result = new_result;
+                
+                free(U_slice);
+                free(V_slice);
+                free_dmatrix(temp_result, 1, height, 1, width);
+            }
+            counter = counter + increment_by;
+            sprintf(filename, "output_hint_%d.bmp", i+1);
+            write_grayscale_bmp(filename, result, width, height);
+        }
 
         //generates a greyscale image using the extracted pixel values.
         write_grayscale_bmp(output_filename, matrix, width, height);
-
+        free_dmatrix(result, 1, height, 1, width);
         free_matrix(matrix, height);
         free_dmatrix(U_reduced, 1, height, 1, width);
         free_dvector(W_reduced, 1, width);
@@ -57,6 +124,7 @@ int main(int argc, char** argv) {
         free_dmatrix(V_T, 1, width, 1, width);
         free_dmatrix(a, 1, height, 1, width);
         printf("Done.\n");
+
         
     } else {
         printf("Failed to read the BMP file.\n");
@@ -64,6 +132,56 @@ int main(int argc, char** argv) {
 
     return 0;
 }
+
+// Helper function for column-row matrix multiplication with a scalar
+double** column_row_scalar_multiply(double *col, double *row, int col_size, int row_size, double scalar) {
+    double **result = (double **)malloc((col_size + 1) * sizeof(double *));
+    if (result == NULL) {
+        perror("Failed to allocate memory for result matrix.");
+        exit(EXIT_FAILURE);
+    }
+    for (int i = 1; i <= col_size; i++) {
+        result[i] = (double *)malloc((row_size + 1) * sizeof(double));
+        if (result[i] == NULL) {
+            perror("Failed to allocate memory for row.");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    for (int i = 1; i <= col_size; i++) {
+        for (int j = 1; j <= row_size; j++) {
+            result[i][j] = scalar * col[i-1] * row[j-1];
+        }
+    }
+
+    return result;
+}
+
+// Function to add 2 matrices
+double** add_matrices(double **matrix1, double **matrix2, int rows, int columns) {
+    double **result = (double **)malloc((rows + 1) * sizeof(double *));
+    if (result == NULL) {
+        perror("Failed to allocate memory for result matrix.");
+        exit(EXIT_FAILURE);
+    }
+
+    for (int i = 1; i <= rows; i++) {
+        result[i] = (double *)malloc((columns + 1) * sizeof(double));
+        if (result[i] == NULL) {
+            perror("Failed to allocate memory for result matrix row.");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    for (int i = 1; i <= rows; i++) {
+        for (int j = 1; j <= columns; j++) {
+            result[i][j] = matrix1[i][j] + matrix2[i][j];
+        }
+    }
+
+    return result;
+}
+
 
 
 

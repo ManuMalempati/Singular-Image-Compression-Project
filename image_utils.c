@@ -1,6 +1,7 @@
 #include "image_utils.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 #pragma pack(push, 1)
 typedef struct {
@@ -26,7 +27,7 @@ typedef struct {
 } BITMAPINFOHEADER;
 #pragma pack(pop)
 
-int** read_grayscale_bmp(const char *filename, int *width, int *height) {
+double** read_grayscale_bmp(const char *filename, int *width, int *height) {
     FILE *fIn = fopen(filename, "rb");
     if (!fIn) {
         perror("Error opening file");
@@ -49,7 +50,7 @@ int** read_grayscale_bmp(const char *filename, int *width, int *height) {
     *height = abs(infoHeader.biHeight);
     int stride = ((*width * 3) + 3) & ~3; // Align to 4 bytes for 24-bit BMP
 
-    int **matrix = (int **)malloc(*height * sizeof(int *));
+    double **matrix = (double **)malloc(*height * sizeof(double *));
     if (!matrix) {
         perror("Memory allocation failed");
         fclose(fIn);
@@ -57,7 +58,7 @@ int** read_grayscale_bmp(const char *filename, int *width, int *height) {
     }
 
     for (int i = 0; i < *height; i++) {
-        matrix[i] = (int *)malloc(*width * sizeof(int));
+        matrix[i] = (double *)malloc(*width * sizeof(double));
         if (!matrix[i]) {
             perror("Memory allocation failed");
             for (int j = 0; j < i; j++) {
@@ -76,7 +77,7 @@ int** read_grayscale_bmp(const char *filename, int *width, int *height) {
             unsigned char rgb[3];
             fread(rgb, sizeof(unsigned char), 3, fIn);
             unsigned char gray = (unsigned char)(0.299 * rgb[2] + 0.587 * rgb[1] + 0.114 * rgb[0]);
-            matrix[y][x] = gray;
+            matrix[y][x] = (double)gray; // Store as double
         }
         fseek(fIn, stride - (*width * 3), SEEK_CUR); // Skip padding bytes
     }
@@ -85,14 +86,14 @@ int** read_grayscale_bmp(const char *filename, int *width, int *height) {
     return matrix;
 }
 
-void free_matrix(int **matrix, int height) {
+void free_matrix(double **matrix, int height) {
     for (int i = 0; i < height; i++) {
         free(matrix[i]);
     }
     free(matrix);
 }
 
-void write_grayscale_bmp(const char *filename, int **matrix, int width, int height) {
+void write_grayscale_bmp(const char *filename, double **matrix, int width, int height) {
     FILE *fOut = fopen(filename, "wb");
     if (!fOut) {
         perror("Error opening file for writing");
@@ -136,7 +137,7 @@ void write_grayscale_bmp(const char *filename, int **matrix, int width, int heig
     // Write pixel data from top to bottom
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
-            unsigned char gray = (unsigned char)matrix[y][x];
+            unsigned char gray = (unsigned char)fmax(0, fmin(255, matrix[y][x])); // Clamp values
             fwrite(&gray, sizeof(unsigned char), 1, fOut);
         }
         for (int p = 0; p < (stride - width); p++) {
