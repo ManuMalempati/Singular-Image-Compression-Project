@@ -5,13 +5,13 @@
 #include <stdlib.h>
 
 double** column_row_scalar_multiply(double *col, double *row, int col_size, int row_size, double scalar);
-double** add_matrices(double **matrix1, double **matrix2, int rows, int columns);
+void add_matrices(double **matrix1, double **matrix2, int rows, int columns);
 
 
 int main(int argc, char** argv) {
-    const char *input_filename = "sample.bmp";
+    const char *input_filename = "sample1.bmp";
     const char *output_filename = "output.bmp";
-    int width, height, hints=3;
+    int width, height, hints=8;
 
     // The number of hints, is the number of rows, columns and singular values to include incrementally from the decomposed matrices.
 
@@ -68,7 +68,9 @@ int main(int argc, char** argv) {
             singular_values = width;
         }
 
-        int increment_by = singular_values/hints;
+
+        //int increment_by = singular_values/hints;
+        int increment_by = 5;
 
         int counter = 1;
         
@@ -85,7 +87,8 @@ int main(int argc, char** argv) {
         
         for(int i=0; i < hints; i++){
             // pick counter-counter+increment_by rows from U_reduced, values from W_reduced and columns from V_T
-            for(int j=counter; j<counter+increment_by && j <= singular_values; j++){
+            
+            for(int j=counter; j<counter+increment_by && j<= singular_values; j++){
                 double *U_slice = (double*)calloc(height, sizeof(double));
                 double *V_slice = (double*)calloc(width, sizeof(double));
                 if(U_slice == NULL || V_slice == NULL){
@@ -100,10 +103,7 @@ int main(int argc, char** argv) {
                 }
 
                 double **temp_result = column_row_scalar_multiply(U_slice, V_slice, height, width, singular_value);
-                double **new_result = add_matrices(result, temp_result, height, width);
-
-                free_dmatrix(result, 1, height, 1, width);
-                result = new_result;
+                add_matrices(result, temp_result, height, width);
                 
                 free(U_slice);
                 free(V_slice);
@@ -157,29 +157,13 @@ double** column_row_scalar_multiply(double *col, double *row, int col_size, int 
     return result;
 }
 
-// Function to add 2 matrices
-double** add_matrices(double **matrix1, double **matrix2, int rows, int columns) {
-    double **result = (double **)malloc((rows + 1) * sizeof(double *));
-    if (result == NULL) {
-        perror("Failed to allocate memory for result matrix.");
-        exit(EXIT_FAILURE);
-    }
-
-    for (int i = 1; i <= rows; i++) {
-        result[i] = (double *)malloc((columns + 1) * sizeof(double));
-        if (result[i] == NULL) {
-            perror("Failed to allocate memory for result matrix row.");
-            exit(EXIT_FAILURE);
-        }
-    }
-
+// Function to add a matrix to an existing matrix
+void add_matrices(double **matrix1, double **matrix2, int rows, int columns) {
     for (int i = 1; i <= rows; i++) {
         for (int j = 1; j <= columns; j++) {
-            result[i][j] = matrix1[i][j] + matrix2[i][j];
+            matrix1[i][j] = matrix1[i][j] + matrix2[i][j];
         }
     }
-
-    return result;
 }
 
 
