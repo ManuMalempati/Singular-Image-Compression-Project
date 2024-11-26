@@ -1,2 +1,2 @@
-# Image decompression project
+# Image compression project
  
