@@ -3,22 +3,36 @@
 #include "svdcmp.h"
 #include <math.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 double** column_row_scalar_multiply(double *col, double *row, int col_size, int row_size, double scalar);
 void add_matrices(double **matrix1, double **matrix2, int rows, int columns);
 int strcmp(char s1[], char s2[]);
+void to_lowercase(char *str);
 
 int main(int argc, char** argv) {
 
     char input_filename[1024];
     char answer[1024];
 
-    printf("Please enter the filename of the image you want to guess (Max 1024 characters): ");
-    scanf("%s", input_filename);
-    printf("Please enter the name of the image (Max 1024 characters): ");
-    scanf("%s", answer);
+    printf("Please enter the filename of the image you want to guess (Max 1024 characters, e.g. sample.bmp): ");
+    scanf("%1023s", input_filename); // Reserve 1 char for null terminator
+
+    // Check if the file exists firsts.
+    FILE *file = fopen(input_filename, "r");
+    if (!file) {
+        perror("Error opening file");
+        return EXIT_FAILURE;
+    }
+    fclose(file);
+
+    printf("Please enter the name/answer of the image (Max 1024 characters): ");
+    scanf("%1023s", answer);
+    // convert answer to lower case
+    to_lowercase(answer);
+
     printf("Loading %s...\n", input_filename);
-    
+
     const char *output_filename = "output.bmp";
     int width, height, hints;
 
@@ -26,10 +40,6 @@ int main(int argc, char** argv) {
 
     // Extract pixel values into matrix
     double **matrix = read_grayscale_bmp(input_filename, &width, &height);
-
-    printf("How many hints?: ");
-    scanf("%d", &hints);
-    hints++; // since the first image is given and not considered a hint.
 
     if (matrix) {
         printf("Height: %d\n", height);
@@ -55,8 +65,6 @@ int main(int argc, char** argv) {
         // Initialise matrices to store the decomposition.
         double **U_reduced = NULL, *W_reduced = NULL, **V_reduced = NULL, **V_T = NULL;
 
-        printf("Entering the function\n");
-
         // Decompose matrix & store decomposed data.
         /* We have to pass the addresses of the matrices, otherwise the decomposer function will end up receiving a copy of the pointers.
            Passing the address, allows allocation as follows: *U_reduced = ()malloc()...
@@ -73,6 +81,17 @@ int main(int argc, char** argv) {
             singular_values = width;
         }
 
+        printf("How many hints? (1 to %d): ", singular_values);
+
+        while (1) {
+            scanf("%d", &hints);
+            if (hints >= 1 && hints <= singular_values) {
+                break; // Valid input, exit the loop
+            } else {
+                printf("Invalid input. Please enter a number between 1 and %d: ", singular_values);
+            }
+        }
+        hints++; // since the first image is given and not considered a hint.
 
         //int increment_by = singular_values/hints;
         int increment_by = 5;
@@ -92,6 +111,7 @@ int main(int argc, char** argv) {
         int hints_used=0;
 
         printf("Please give the device to the other user to guess.\n");
+        printf("------------------------ Game Start ------------------------\n");
         
         for(int i=0; i < hints; i++){
             // pick counter-counter+increment_by rows from U_reduced, values from W_reduced and columns from V_T (next set of elements)
@@ -130,13 +150,20 @@ int main(int argc, char** argv) {
             hints_used++;
             sprintf(filename, "output_hint_%d.bmp", i+1);
             write_grayscale_bmp(filename, result, width, height);
+
             char guess[100];
             printf("%s has been generated.\nType your guess (type 'h' to use the next hint (%d hints remaining), type '0' to exit): ", filename, hints-hints_used);
             scanf("%s", guess);
+
+            // convert answer to lower case
+            to_lowercase(guess);
+
+            // Keep asking user for input until right answer is entered or a keyword is entered
             while((strcmp(guess, answer) != 0) && (strcmp(guess, "h") != 0 ) && (strcmp(guess, "0") != 0)){
                 printf("Incorrect.\n");
                 printf("Type your guess (type 'h' to use the next hint (%d hints remaining), type '0' to exit): ", hints-hints_used);
                 scanf("%s", guess);
+                to_lowercase(guess);
             }
             if(strcmp(guess, answer) == 0){
                 printf("Correct! You guessed the answer with %d hint(s).\n", i);
@@ -162,8 +189,16 @@ int main(int argc, char** argv) {
             printf("All hints have been used.\n");
         }
         printf("The answer was: %s.\n", answer);
-        printf("Done.\n");
 
+        // Delete all the generated files.
+        for(int i=1; i<=(hints_used); i++){
+            sprintf(filename, "output_hint_%d.bmp", i);
+            if (remove(filename) != 0) {
+                perror("Error deleting the file"); // Prints the error message
+            }
+        }
+
+        printf("------------------------ Game End ------------------------\n");
         
     } else {
         printf("Failed to read the BMP file.\n");
@@ -216,6 +251,13 @@ void add_matrices(double **matrix1, double **matrix2, int rows, int columns) {
         for (int j = 1; j <= columns; j++) {
             matrix1[i][j] = matrix1[i][j] + matrix2[i][j];
         }
+    }
+}
+
+// Function to convert a given string to lowercase
+void to_lowercase(char *str) {
+    for (int i = 0; str[i]; i++) {
+        str[i] = tolower(str[i]);
     }
 }
 
