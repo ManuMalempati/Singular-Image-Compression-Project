@@ -27,4 +27,4 @@ Use the following commands in a `cmd` terminal within Visual Studio Code after o
 
 ```bash
 gcc -Wall -o masterfile.exe masterfile.c svdcmp.c decomposer.c image_utils.c -lm
-.\masterfile
+.\masterfile.exe
